@@ -42,3 +42,43 @@ export const updateReorderSuggestion = (suggestionId, status) => {
     body: JSON.stringify({ status }),
   }).then(handleResponse);
 };
+
+export const fetchAvailableStrategies = () => {
+  return fetch(`${BASE_URL}/strategies/available`).then(handleResponse);
+};
+
+export const fetchActiveStrategies = () => {
+  return fetch(`${BASE_URL}/strategies/active`).then(handleResponse);
+};
+
+export const activatePricingStrategy = (name) => {
+  return fetch(`${BASE_URL}/strategies/activate/pricing/${name}`, { method: 'POST' }).then(handleResponse);
+};
+
+export const activateReorderStrategy = (name) => {
+  return fetch(`${BASE_URL}/strategies/activate/reorder/${name}`, { method: 'POST' }).then(handleResponse);
+};
+
+export const generatePricingSuggestion = (productId) => {
+  return fetch(`${BASE_URL}/products/${productId}/suggest-pricing/strategy`, { method: 'POST' }).then(handleResponse);
+};
+
+export const generateReorderSuggestion = (productId) => {
+  return fetch(`${BASE_URL}/products/${productId}/suggest-reorder/strategy`, { method: 'POST' }).then(handleResponse);
+};
+
+export const updateStock = (productId, stockLevel) => {
+  return fetch(`${BASE_URL}/products/${productId}/stock`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ stockLevel: parseInt(stockLevel, 10) }),
+  }).then(handleResponse);
+};
+
+export const createProduct = (productDto) => {
+  return fetch(`${BASE_URL}/products`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(productDto),
+  }).then(handleResponse);
+};

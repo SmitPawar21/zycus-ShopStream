@@ -9,10 +9,7 @@ import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 
 @Entity
-@Table(name = "pricing_suggestions",
-       uniqueConstraints = {
-           @UniqueConstraint(columnNames = {"product_id", "trigger_reason", "status"})
-       })
+@Table(name = "pricing_suggestions")
 public class PricingSuggestion {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

@@ -70,8 +70,8 @@ public class RuleBasedReorderStrategy implements ReorderStrategy {
             return Math.max(needed, reorderThreshold / 2);
         }
         
-        // We're well stocked, no need to reorder
-        return 0;
+        // We're well stocked, suggest minimal reorder (user can reject)
+        return 1;
     }
     
     private int determineLeadTime(Product product) {

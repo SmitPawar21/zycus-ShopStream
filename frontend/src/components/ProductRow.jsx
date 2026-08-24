@@ -73,7 +73,10 @@ export const ProductRow = ({
   onAcceptPricing, 
   onRejectPricing, 
   onAcceptReorder, 
-  onRejectReorder 
+  onRejectReorder,
+  onUpdateStock,
+  onGeneratePricing,
+  onGenerateReorder
 }) => {
   return (
     <tr className="border-b border-gray-200 hover:bg-gray-50">
@@ -131,12 +134,35 @@ export const ProductRow = ({
       
       {/* Actions */}
       <td className="px-4 py-3 align-top text-right border-l border-gray-100">
-        <button 
-          onClick={() => onSimulateSale(product.id)}
-          className="px-3 py-1.5 border border-gray-300 text-gray-700 text-xs font-medium rounded-sm hover:bg-gray-100"
-        >
-          Simulate Sale
-        </button>
+        <div className="flex flex-col space-y-2 w-32 ml-auto">
+          <button 
+            onClick={() => onSimulateSale(product.id)}
+            className="px-2 py-1 border border-gray-300 text-gray-700 text-xs font-medium rounded-sm hover:bg-gray-100"
+          >
+            Simulate Sale
+          </button>
+          <button 
+            onClick={() => onUpdateStock(product.id)}
+            className="px-2 py-1 border border-gray-300 text-gray-700 text-xs font-medium rounded-sm hover:bg-gray-100"
+          >
+            Update Stock
+          </button>
+          <div className="border-t border-gray-200 my-1 pt-1 flex flex-col space-y-1">
+            <span className="text-[10px] text-gray-400 uppercase text-center mb-1">Generate AI</span>
+            <button 
+              onClick={() => onGeneratePricing(product.id)}
+              className="px-2 py-1 border border-indigo-200 bg-indigo-50 text-indigo-700 text-xs font-medium rounded-sm hover:bg-indigo-100"
+            >
+              Pricing
+            </button>
+            <button 
+              onClick={() => onGenerateReorder(product.id)}
+              className="px-2 py-1 border border-indigo-200 bg-indigo-50 text-indigo-700 text-xs font-medium rounded-sm hover:bg-indigo-100"
+            >
+              Reorder
+            </button>
+          </div>
+        </div>
       </td>
     </tr>
   );
