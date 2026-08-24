@@ -20,6 +20,10 @@ export const fetchPendingReorderSuggestions = () => {
   return fetch(`${BASE_URL}/reorder-suggestions?status=PENDING`).then(handleResponse);
 };
 
+export const fetchAllPricingSuggestions = () => {
+  return fetch(`${BASE_URL}/pricing-suggestions`).then(handleResponse);
+};
+
 export const simulateSale = (productId) => {
   return fetch(`${BASE_URL}/products/${productId}/orders`, {
     method: 'POST',

@@ -1,5 +1,41 @@
-import React from 'react';
+import React, { useState } from 'react';
 
+// --- Stock Heatmap Indicator ---
+const StockHeatmap = ({ stockLevel, reorderThreshold }) => {
+  const ratio = reorderThreshold > 0 ? stockLevel / reorderThreshold : 1;
+  let barColor = 'bg-green-500';
+  let label = 'Healthy';
+
+  if (stockLevel === 0) {
+    barColor = 'bg-red-600';
+    label = 'Out of Stock';
+  } else if (ratio <= 0.5) {
+    barColor = 'bg-red-500';
+    label = 'Critical';
+  } else if (ratio <= 1.0) {
+    barColor = 'bg-amber-500';
+    label = 'Low';
+  } else if (ratio <= 2.0) {
+    barColor = 'bg-yellow-400';
+    label = 'Watch';
+  }
+
+  const widthPercent = Math.min(ratio * 33.3, 100); // 3x threshold = full bar
+
+  return (
+    <div className="mt-1">
+      <div className="flex justify-between items-center mb-0.5">
+        <span className="text-[10px] text-gray-500">{label}</span>
+        <span className="text-[10px] text-gray-400">{stockLevel}/{reorderThreshold}</span>
+      </div>
+      <div className="w-full h-1.5 bg-gray-200 rounded-sm overflow-hidden">
+        <div className={`h-full ${barColor} rounded-sm`} style={{ width: `${widthPercent}%` }} />
+      </div>
+    </div>
+  );
+};
+
+// --- Status Badge ---
 const StatusBadge = ({ status }) => {
   let bgColor = 'bg-gray-100';
   let textColor = 'text-gray-800';
@@ -22,6 +58,7 @@ const StatusBadge = ({ status }) => {
   );
 };
 
+// --- Suggestion Block ---
 const SuggestionBlock = ({ type, suggestion, onAccept, onReject }) => {
   if (!suggestion) return null;
 
@@ -38,13 +75,33 @@ const SuggestionBlock = ({ type, suggestion, onAccept, onReject }) => {
         </span>
       </div>
       
-      <div className="text-xs text-gray-800 mb-1 leading-tight">
+      {isPricing && suggestion.recommendedPrice != null && (
+        <div className="text-xs font-mono text-gray-700 mb-1">
+          ${suggestion.currentPrice?.toFixed(2)} → <strong>${suggestion.recommendedPrice?.toFixed(2)}</strong>
+          <span className={`ml-1.5 text-[10px] font-bold px-1 py-0.5 rounded-sm ${
+            suggestion.changeDirection === 'INCREASE' ? 'bg-green-100 text-green-700' :
+            suggestion.changeDirection === 'DECREASE' ? 'bg-red-100 text-red-700' :
+            'bg-gray-100 text-gray-600'
+          }`}>{suggestion.changeDirection}</span>
+        </div>
+      )}
+
+      {!isPricing && suggestion.recommendedQuantity != null && (
+        <div className="text-xs font-mono text-gray-700 mb-1">
+          Reorder <strong>{suggestion.recommendedQuantity} units</strong>
+          {suggestion.suggestedLeadTimeDays && (
+            <span className="text-gray-400 ml-1">({suggestion.suggestedLeadTimeDays}d lead)</span>
+          )}
+        </div>
+      )}
+      
+      <div className="text-xs text-gray-600 mb-1 leading-tight">
         {suggestion.reasoning}
       </div>
       
       <div className="flex items-center justify-between mt-2">
-        <div className="text-xs text-gray-600">
-          Confidence: {(suggestion.confidence * 100).toFixed(0)}%
+        <div className="text-xs text-gray-500">
+          Confidence: <strong>{(suggestion.confidence * 100).toFixed(0)}%</strong>
         </div>
         <div className="flex gap-1.5">
           <button 
@@ -65,10 +122,35 @@ const SuggestionBlock = ({ type, suggestion, onAccept, onReject }) => {
   );
 };
 
+// --- Price History Mini Table ---
+const PriceHistory = ({ history }) => {
+  if (!history || history.length === 0) {
+    return <div className="text-[10px] text-gray-400 italic mt-1">No price history</div>;
+  }
+
+  return (
+    <div className="mt-1.5">
+      <div className="text-[10px] text-gray-500 font-semibold uppercase mb-1">Recent Price Changes</div>
+      <div className="space-y-0.5">
+        {history.slice(0, 3).map((entry, idx) => (
+          <div key={idx} className="flex justify-between items-center text-[10px] font-mono">
+            <span className="text-gray-500">${entry.currentPrice?.toFixed(2)} → ${entry.recommendedPrice?.toFixed(2)}</span>
+            <span className={`px-1 py-0 rounded-sm font-bold ${
+              entry.status === 'ACCEPTED' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+            }`}>{entry.status}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// --- Main ProductRow ---
 export const ProductRow = ({ 
   product, 
   pricingSuggestion, 
   reorderSuggestion, 
+  priceHistory,
   onSimulateSale, 
   onAcceptPricing, 
   onRejectPricing, 
@@ -78,6 +160,15 @@ export const ProductRow = ({
   onGeneratePricing,
   onGenerateReorder
 }) => {
+  const [showHistory, setShowHistory] = useState(false);
+
+  // Margin calculation
+  const costPrice = product.costPrice || 0;
+  const currentPrice = product.currentPrice || 0;
+  const margin = currentPrice - costPrice;
+  const marginPercent = costPrice > 0 ? ((margin / costPrice) * 100).toFixed(1) : '—';
+  const marginColor = margin > 0 ? 'text-green-700' : margin < 0 ? 'text-red-700' : 'text-gray-600';
+
   return (
     <tr className="border-b border-gray-200 hover:bg-gray-50">
       {/* Product Details */}
@@ -89,25 +180,43 @@ export const ProductRow = ({
       
       {/* Metrics */}
       <td className="px-4 py-3 align-top">
-        <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+        <div className="grid grid-cols-3 gap-x-4 gap-y-2 text-sm">
+          {/* Price */}
           <div>
             <span className="text-xs text-gray-500 block">Price</span>
-            <span className="font-medium text-gray-900">${product.currentPrice.toFixed(2)}</span>
+            <span className="font-medium text-gray-900">${currentPrice.toFixed(2)}</span>
           </div>
+          {/* Margin */}
           <div>
-            <span className="text-xs text-gray-500 block">Stock</span>
-            <span className="font-medium text-gray-900">{product.stockLevel}</span>
-            <span className="text-xs text-gray-400 ml-1">(Thresh: {product.reorderThreshold})</span>
+            <span className="text-xs text-gray-500 block">Margin</span>
+            <span className={`font-medium ${marginColor}`}>{marginPercent}%</span>
+            <span className={`text-[10px] block ${marginColor}`}>${margin.toFixed(2)}</span>
           </div>
+          {/* Velocity */}
           <div>
             <span className="text-xs text-gray-500 block">Velocity</span>
             <span className="font-medium text-gray-900">{product.demandVelocity}/day</span>
           </div>
+          {/* Stock + Heatmap */}
+          <div className="col-span-2">
+            <span className="text-xs text-gray-500 block">Stock Level</span>
+            <span className="font-medium text-gray-900">{product.stockLevel}</span>
+            <StockHeatmap stockLevel={product.stockLevel} reorderThreshold={product.reorderThreshold} />
+          </div>
+          {/* Status */}
           <div>
             <span className="text-xs text-gray-500 block">Status</span>
             <StatusBadge status={product.lifecycleStatus} />
           </div>
         </div>
+        {/* Price History Toggle */}
+        <button 
+          onClick={() => setShowHistory(!showHistory)}
+          className="text-[10px] text-indigo-600 hover:text-indigo-800 mt-2 font-medium"
+        >
+          {showHistory ? '▾ Hide Price History' : '▸ Price History'}
+        </button>
+        {showHistory && <PriceHistory history={priceHistory} />}
       </td>
       
       {/* Suggestions */}
