@@ -1,4 +1,4 @@
-# ShopStream — AI-Powered Merchandising Operations Platform
+# StockPulse — AI-Powered Merchandising Operations Platform
 
 An enterprise-grade inventory and pricing management system that combines rule-based automation with LLM-powered intelligence to generate real-time pricing and reorder suggestions. Built as a full-stack application with a Spring Boot backend, React frontend, and pluggable AI strategy architecture.
 
