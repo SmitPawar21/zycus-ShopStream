@@ -87,6 +87,45 @@ POST /api/strategy/pricing/switch?strategyName=AI
 POST /api/strategy/reorder/switch?strategyName=RULE_BASED
 ```
 
+## Async Event-Driven Suggestion Generation (T-4)
+
+### Architecture
+```
+PATCH stock / POST order
+          ↓
+       Product
+          ↓
+   publish event
+          ↓
+      @Async
+          ↓
+   Agentic Service
+       ↙     ↘
+ Pricing     Reorder
+ Strategy   Strategy
+       ↓       ↓
+  Suggestion Suggestion
+```
+
+### Trigger Events
+The system automatically generates suggestions when certain conditions are met:
+
+1. **INVENTORY_LOW**: When stock level falls below reorder threshold
+2. **DEMAND_SPIKE**: When demand velocity exceeds 150% of category average
+
+### Implementation Details
+- Uses Spring's `ApplicationEventPublisher` to publish events
+- Event listeners process events asynchronously using `@Async`
+- Duplicate pending suggestion prevention using database queries
+- Automatic fallback to rule-based strategies on AI failure
+- API endpoints return immediately without waiting for suggestion generation
+
+### Benefits
+- Non-blocking API responses
+- Automatic suggestion generation based on business triggers
+- Prevention of duplicate work
+- Robust error handling with fallback mechanisms
+
 ## Usage Examples
 
 ### Generate AI Pricing Recommendation
@@ -97,6 +136,12 @@ POST /api/suggestions/pricing/generate/{sku}?strategy=AI
 ### Generate AI Reorder Recommendation
 ```
 POST /api/suggestions/reorder/generate/{sku}?strategy=AI
+```
+
+### Manual Trigger Checking
+```
+// This happens automatically but can be called manually if needed
+GET /api/products/{id}/check-triggers
 ```
 
 ## Testing
@@ -111,9 +156,19 @@ Run integration tests:
 mvn test -Dtest=AiStrategyIntegrationTest
 ```
 
+Run async integration tests:
+```bash
+mvn test -Dtest=AsyncSuggestionGenerationIntegrationTest
+```
+
 ## Extensibility
 
 To add support for different LLM providers:
 1. Implement a new `LLMGateway` implementation
 2. Update the configuration to use your new gateway
 3. Ensure proper error handling and fallback mechanisms
+
+To add new trigger events:
+1. Add new values to the `TriggerReason` enum
+2. Update the trigger checking logic in `ProductServiceImpl`
+3. The event system will automatically handle the new triggers

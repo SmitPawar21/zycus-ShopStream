@@ -2,6 +2,7 @@ package com.example.AiInventoryPricing.service.impl;
 
 import com.example.AiInventoryPricing.dto.*;
 import com.example.AiInventoryPricing.enums.SuggestionStatus;
+import com.example.AiInventoryPricing.enums.TriggerReason;
 import com.example.AiInventoryPricing.entity.Product;
 import com.example.AiInventoryPricing.entity.PricingSuggestion;
 import com.example.AiInventoryPricing.entity.ReorderSuggestion;
@@ -15,6 +16,8 @@ import com.example.AiInventoryPricing.exception.InvalidSuggestionOperationExcept
 import com.example.AiInventoryPricing.strategy.StrategyRegistry;
 import com.example.AiInventoryPricing.strategy.pricing.PricingStrategy;
 import com.example.AiInventoryPricing.strategy.reorder.ReorderStrategy;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +29,8 @@ import java.util.Optional;
 @Service
 @Transactional(readOnly = true)
 public class SuggestionServiceImpl implements SuggestionService {
+    
+    private static final Logger logger = LoggerFactory.getLogger(SuggestionServiceImpl.class);
     
     @Autowired
     private PricingSuggestionRepository pricingSuggestionRepository;
@@ -262,6 +267,78 @@ public class SuggestionServiceImpl implements SuggestionService {
         
         ReorderSuggestion savedSuggestion = reorderSuggestionRepository.save(suggestion);
         return convertToReorderDto(savedSuggestion);
+    }
+    
+    @Override
+    @Transactional
+    public boolean generatePricingSuggestionAsync(Long productId, TriggerReason triggerReason) {
+        // Check if there's already a pending suggestion for this product and trigger reason
+        Optional<PricingSuggestion> existingPendingSuggestion = 
+            pricingSuggestionRepository.findPendingByProductIdAndTriggerReason(productId, triggerReason);
+        
+        if (existingPendingSuggestion.isPresent()) {
+            logger.info("Skipping pricing suggestion generation - pending suggestion already exists for product ID: {}, trigger: {}", 
+                       productId, triggerReason);
+            return false; // Already has a pending suggestion
+        }
+        
+        try {
+            Product product = productRepository.findById(productId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + productId));
+            
+            Optional<PricingStrategy> strategyOpt = strategyRegistry.getActivePricingStrategy();
+            if (!strategyOpt.isPresent()) {
+                logger.warn("No active pricing strategy configured for product ID: {}", productId);
+                return false;
+            }
+            
+            PricingStrategy strategy = strategyOpt.get();
+            PricingSuggestion suggestion = strategy.generatePricingSuggestion(product);
+            suggestion.setTriggerReason(triggerReason); // Set the trigger reason
+            
+            pricingSuggestionRepository.save(suggestion);
+            logger.info("Generated pricing suggestion for product ID: {}, trigger: {}", productId, triggerReason);
+            return true;
+        } catch (Exception e) {
+            logger.error("Error generating pricing suggestion for product ID: {}, trigger: {}", productId, triggerReason, e);
+            return false;
+        }
+    }
+    
+    @Override
+    @Transactional
+    public boolean generateReorderSuggestionAsync(Long productId, TriggerReason triggerReason) {
+        // Check if there's already a pending suggestion for this product and trigger reason
+        Optional<ReorderSuggestion> existingPendingSuggestion = 
+            reorderSuggestionRepository.findPendingByProductIdAndTriggerReason(productId, triggerReason);
+        
+        if (existingPendingSuggestion.isPresent()) {
+            logger.info("Skipping reorder suggestion generation - pending suggestion already exists for product ID: {}, trigger: {}", 
+                       productId, triggerReason);
+            return false; // Already has a pending suggestion
+        }
+        
+        try {
+            Product product = productRepository.findById(productId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + productId));
+            
+            Optional<ReorderStrategy> strategyOpt = strategyRegistry.getActiveReorderStrategy();
+            if (!strategyOpt.isPresent()) {
+                logger.warn("No active reorder strategy configured for product ID: {}", productId);
+                return false;
+            }
+            
+            ReorderStrategy strategy = strategyOpt.get();
+            ReorderSuggestion suggestion = strategy.generateReorderSuggestion(product);
+            suggestion.setTriggerReason(triggerReason); // Set the trigger reason
+            
+            reorderSuggestionRepository.save(suggestion);
+            logger.info("Generated reorder suggestion for product ID: {}, trigger: {}", productId, triggerReason);
+            return true;
+        } catch (Exception e) {
+            logger.error("Error generating reorder suggestion for product ID: {}, trigger: {}", productId, triggerReason, e);
+            return false;
+        }
     }
     
     @Override

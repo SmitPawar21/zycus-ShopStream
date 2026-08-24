@@ -7,7 +7,7 @@ import {
   updatePricingSuggestion, 
   updateReorderSuggestion 
 } from '../api';
-import { ProductCard } from '../components/ProductCard';
+import { ProductRow } from '../components/ProductRow';
 
 export const HomePage = () => {
   const [products, setProducts] = useState([]);
@@ -26,7 +26,6 @@ export const HomePage = () => {
       
       setProducts(productsData);
       
-      // Index suggestions by productId for easy lookup
       const pricingMap = {};
       pricingData.forEach(s => pricingMap[s.productId] = s);
       setPricingSuggestions(pricingMap);
@@ -52,7 +51,7 @@ export const HomePage = () => {
   const handleSimulateSale = async (productId) => {
     try {
       await simulateSale(productId);
-      loadData(); // Refresh immediately
+      loadData(); 
     } catch (err) {
       alert('Simulation failed: ' + err.message);
     }
@@ -77,48 +76,65 @@ export const HomePage = () => {
   };
 
   if (loading && products.length === 0) {
-    return <div className="p-8 text-center text-gray-500">Loading merchandise data...</div>;
+    return <div className="p-8 text-sm text-gray-500 font-mono">Loading data...</div>;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6 font-sans">
-      <div className="max-w-7xl mx-auto">
-        <header className="mb-8">
-          <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">T-5 Merchandising Console</h1>
-          <p className="text-gray-500 mt-2">Manage products, view metrics, and resolve AI suggestions.</p>
+    <div className="min-h-screen bg-gray-100 p-4 sm:p-6 lg:p-8 font-sans">
+      <div className="max-w-[1400px] mx-auto">
+        <header className="mb-6 flex justify-between items-end border-b border-gray-300 pb-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Merchandising Operations Console</h1>
+            <p className="text-sm text-gray-600 mt-1 font-mono">T-5 Systems // AI Inventory & Pricing Engine</p>
+          </div>
+          <div className="text-xs text-gray-500 font-mono">
+            {products.length} Products Monitored
+          </div>
         </header>
 
         {error && (
-          <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
-            <div className="flex">
-              <div className="ml-3">
-                <p className="text-sm text-red-700">{error}</p>
-              </div>
-            </div>
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-sm text-sm mb-6">
+            <strong>System Error:</strong> {error}
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {products.map(product => (
-            <ProductCard 
-              key={product.id} 
-              product={product} 
-              pricingSuggestion={pricingSuggestions[product.id]}
-              reorderSuggestion={reorderSuggestions[product.id]}
-              onSimulateSale={handleSimulateSale}
-              onAcceptPricing={(id) => handlePricingAction(id, 'ACCEPTED')}
-              onRejectPricing={(id) => handlePricingAction(id, 'REJECTED')}
-              onAcceptReorder={(id) => handleReorderAction(id, 'ACCEPTED')}
-              onRejectReorder={(id) => handleReorderAction(id, 'REJECTED')}
-            />
-          ))}
-        </div>
-        
-        {products.length === 0 && !loading && !error && (
-          <div className="text-center text-gray-500 mt-12 bg-white p-12 rounded-lg border border-gray-200">
-            No products found. Start by seeding the database or creating a product.
+        <div className="bg-white border border-gray-300 shadow-sm rounded-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-gray-100 border-b border-gray-300 text-xs uppercase text-gray-700 tracking-wider">
+                  <th className="px-4 py-3 font-semibold">Product Details</th>
+                  <th className="px-4 py-3 font-semibold">Current Metrics</th>
+                  <th className="px-4 py-3 font-semibold w-1/3">Pending Suggestions</th>
+                  <th className="px-4 py-3 font-semibold text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {products.length > 0 ? (
+                  products.map(product => (
+                    <ProductRow 
+                      key={product.id} 
+                      product={product} 
+                      pricingSuggestion={pricingSuggestions[product.id]}
+                      reorderSuggestion={reorderSuggestions[product.id]}
+                      onSimulateSale={handleSimulateSale}
+                      onAcceptPricing={(id) => handlePricingAction(id, 'ACCEPTED')}
+                      onRejectPricing={(id) => handlePricingAction(id, 'REJECTED')}
+                      onAcceptReorder={(id) => handleReorderAction(id, 'ACCEPTED')}
+                      onRejectReorder={(id) => handleReorderAction(id, 'REJECTED')}
+                    />
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="4" className="px-4 py-8 text-center text-sm text-gray-500 font-mono">
+                      No products available.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

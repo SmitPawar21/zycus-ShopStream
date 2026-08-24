@@ -4,6 +4,7 @@ import com.example.AiInventoryPricing.dto.*;
 import com.example.AiInventoryPricing.enums.Category;
 import com.example.AiInventoryPricing.enums.LifecycleStatus;
 import com.example.AiInventoryPricing.enums.SuggestionStatus;
+import com.example.AiInventoryPricing.enums.TriggerReason;
 import com.example.AiInventoryPricing.entity.Product;
 import com.example.AiInventoryPricing.entity.PricingSuggestion;
 import com.example.AiInventoryPricing.entity.ReorderSuggestion;
@@ -12,7 +13,9 @@ import com.example.AiInventoryPricing.repository.PricingSuggestionRepository;
 import com.example.AiInventoryPricing.repository.ReorderSuggestionRepository;
 import com.example.AiInventoryPricing.service.ProductService;
 import com.example.AiInventoryPricing.exception.ResourceNotFoundException;
+import com.example.AiInventoryPricing.event.ProductEvent;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +36,9 @@ public class ProductServiceImpl implements ProductService {
     @Autowired
     private ReorderSuggestionRepository reorderSuggestionRepository;
     
+    @Autowired
+    private ApplicationEventPublisher eventPublisher;
+    
     @Override
     @Transactional
     public ProductDto createProduct(CreateProductRequestDto requestDto) {
@@ -47,6 +53,10 @@ public class ProductServiceImpl implements ProductService {
         product.setCostPrice(requestDto.getCostPrice());
         
         Product savedProduct = productRepository.save(product);
+        
+        // Check for triggers on newly created product
+        checkTriggersAndPublishEvents(savedProduct);
+        
         return convertToDto(savedProduct);
     }
     
@@ -94,6 +104,9 @@ public class ProductServiceImpl implements ProductService {
         product.setStockLevel(requestDto.getStockLevel());
         Product updatedProduct = productRepository.save(product);
         
+        // Check for triggers after updating stock level
+        checkTriggersAndPublishEvents(updatedProduct);
+        
         return convertToDto(updatedProduct);
     }
     
@@ -110,12 +123,29 @@ public class ProductServiceImpl implements ProductService {
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + id));
         
         product.incrementDemandVelocity();
-        productRepository.save(product);
+        Product updatedProduct = productRepository.save(product);
+        
+        // Check for triggers after incrementing demand velocity
+        checkTriggersAndPublishEvents(updatedProduct);
     }
     
     @Override
     public Double getCategoryAverageDemandVelocity(Category category) {
         return productRepository.getAverageDemandVelocityByCategory(category);
+    }
+    
+    @Override
+    public void checkTriggersAndPublishEvents(Product product) {
+        // Check for INVENTORY_LOW trigger
+        if (product.getStockLevel() <= product.getReorderThreshold()) {
+            eventPublisher.publishEvent(new ProductEvent(product, TriggerReason.INVENTORY_LOW));
+        }
+        
+        // Check for DEMAND_SPIKE trigger
+        Double categoryAvgDemand = getCategoryAverageDemandVelocity(product.getCategory());
+        if (categoryAvgDemand != null && product.getDemandVelocity() > categoryAvgDemand * 1.5) {
+            eventPublisher.publishEvent(new ProductEvent(product, TriggerReason.DEMAND_SPIKE));
+        }
     }
     
     private ProductDto convertToDto(Product product) {

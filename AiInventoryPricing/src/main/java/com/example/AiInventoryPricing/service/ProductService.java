@@ -30,4 +30,7 @@ public interface ProductService {
     void incrementDemandVelocity(Long id);
     
     Double getCategoryAverageDemandVelocity(Category category);
+    
+    // Method to check for triggers and publish events
+    void checkTriggersAndPublishEvents(Product product);
 }

@@ -2,6 +2,7 @@ package com.example.AiInventoryPricing.service;
 
 import com.example.AiInventoryPricing.dto.*;
 import com.example.AiInventoryPricing.enums.SuggestionStatus;
+import com.example.AiInventoryPricing.enums.TriggerReason;
 import com.example.AiInventoryPricing.entity.PricingSuggestion;
 import com.example.AiInventoryPricing.entity.ReorderSuggestion;
 
@@ -37,6 +38,11 @@ public interface SuggestionService {
     PricingSuggestionDto generatePricingSuggestionUsingStrategy(Long productId);
     
     ReorderSuggestionDto generateReorderSuggestionUsingStrategy(Long productId);
+    
+    // Async methods with trigger reason and duplicate prevention
+    boolean generatePricingSuggestionAsync(Long productId, TriggerReason triggerReason);
+    
+    boolean generateReorderSuggestionAsync(Long productId, TriggerReason triggerReason);
     
     // Methods for managing active strategies
     boolean setActivePricingStrategy(String strategyName);
