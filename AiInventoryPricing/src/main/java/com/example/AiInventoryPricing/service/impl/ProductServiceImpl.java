@@ -123,9 +123,15 @@ public class ProductServiceImpl implements ProductService {
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + id));
         
         product.incrementDemandVelocity();
+        
+        // Also decrement stock by 1 to simulate an actual sale
+        if (product.getStockLevel() > 0) {
+            product.setStockLevel(product.getStockLevel() - 1);
+        }
+        
         Product updatedProduct = productRepository.save(product);
         
-        // Check for triggers after incrementing demand velocity
+        // Check for triggers after the sale
         checkTriggersAndPublishEvents(updatedProduct);
     }
     
