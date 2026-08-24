@@ -1,0 +1,9 @@
+-- Seed data for products
+INSERT INTO products (id, sku, name, category, current_price, stock_level, reorder_threshold, demand_velocity, lifecycle_status) VALUES (1, 'ELEC-001', 'Smartphone X1', 'ELECTRONICS', 699.99, 50, 10, 5, 'ACTIVE');
+INSERT INTO products (id, sku, name, category, current_price, stock_level, reorder_threshold, demand_velocity, lifecycle_status) VALUES (2, 'ELEC-002', 'Tablet Pro', 'ELECTRONICS', 399.99, 25, 5, 3, 'ACTIVE');
+INSERT INTO products (id, sku, name, category, current_price, stock_level, reorder_threshold, demand_velocity, lifecycle_status) VALUES (3, 'APP-001', 'Winter Jacket', 'APPAREL', 89.99, 100, 20, 8, 'ACTIVE');
+INSERT INTO products (id, sku, name, category, current_price, stock_level, reorder_threshold, demand_velocity, lifecycle_status) VALUES (4, 'APP-002', 'Running Shoes', 'APPAREL', 129.99, 15, 10, 12, 'ACTIVE');
+INSERT INTO products (id, sku, name, category, current_price, stock_level, reorder_threshold, demand_velocity, lifecycle_status) VALUES (5, 'HOME-001', 'Coffee Maker', 'HOME', 49.99, 30, 15, 4, 'ACTIVE');
+INSERT INTO products (id, sku, name, category, current_price, stock_level, reorder_threshold, demand_velocity, lifecycle_status) VALUES (6, 'HOME-002', 'Blender', 'HOME', 39.99, 0, 5, 2, 'OUT_OF_STOCK');
+INSERT INTO products (id, sku, name, category, current_price, stock_level, reorder_threshold, demand_velocity, lifecycle_status) VALUES (7, 'ELEC-003', 'Bluetooth Speaker', 'ELECTRONICS', 79.99, 3, 5, 7, 'ACTIVE');
+INSERT INTO products (id, sku, name, category, current_price, stock_level, reorder_threshold, demand_velocity, lifecycle_status) VALUES (8, 'APP-003', 'Summer Hat', 'APPAREL', 24.99, 200, 50, 1, 'ACTIVE');

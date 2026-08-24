@@ -1,0 +1,135 @@
+package com.example.AiInventoryPricing.service.impl;
+
+import com.example.AiInventoryPricing.dto.*;
+import com.example.AiInventoryPricing.enums.Category;
+import com.example.AiInventoryPricing.enums.LifecycleStatus;
+import com.example.AiInventoryPricing.enums.SuggestionStatus;
+import com.example.AiInventoryPricing.entity.Product;
+import com.example.AiInventoryPricing.entity.PricingSuggestion;
+import com.example.AiInventoryPricing.entity.ReorderSuggestion;
+import com.example.AiInventoryPricing.repository.ProductRepository;
+import com.example.AiInventoryPricing.repository.PricingSuggestionRepository;
+import com.example.AiInventoryPricing.repository.ReorderSuggestionRepository;
+import com.example.AiInventoryPricing.service.ProductService;
+import com.example.AiInventoryPricing.exception.ResourceNotFoundException;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+@Transactional(readOnly = true)
+public class ProductServiceImpl implements ProductService {
+    
+    @Autowired
+    private ProductRepository productRepository;
+    
+    @Autowired
+    private PricingSuggestionRepository pricingSuggestionRepository;
+    
+    @Autowired
+    private ReorderSuggestionRepository reorderSuggestionRepository;
+    
+    @Override
+    @Transactional
+    public ProductDto createProduct(CreateProductRequestDto requestDto) {
+        Product product = new Product(
+            requestDto.getSku(),
+            requestDto.getName(),
+            requestDto.getCategory(),
+            requestDto.getCurrentPrice(),
+            requestDto.getStockLevel(),
+            requestDto.getReorderThreshold()
+        );
+        product.setCostPrice(requestDto.getCostPrice());
+        
+        Product savedProduct = productRepository.save(product);
+        return convertToDto(savedProduct);
+    }
+    
+    @Override
+    public List<ProductDto> getAllProducts() {
+        return productRepository.findAll().stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
+    
+    @Override
+    public List<ProductDto> getProductsByStatus(LifecycleStatus status) {
+        return productRepository.findByLifecycleStatus(status).stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
+    
+    @Override
+    public List<ProductDto> getProductsByCategory(Category category) {
+        return productRepository.findByCategory(category).stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
+    
+    @Override
+    public List<ProductDto> getProductsByStatusAndCategory(LifecycleStatus status, Category category) {
+        return productRepository.findByLifecycleStatusAndCategory(status, category).stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
+    
+    @Override
+    public ProductDto getProductById(Long id) {
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + id));
+        return convertToDto(product);
+    }
+    
+    @Override
+    @Transactional
+    public ProductDto updateStockLevel(Long id, UpdateStockRequestDto requestDto) {
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + id));
+        
+        product.setStockLevel(requestDto.getStockLevel());
+        Product updatedProduct = productRepository.save(product);
+        
+        return convertToDto(updatedProduct);
+    }
+    
+    @Override
+    public Product getProductEntityById(Long id) {
+        return productRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + id));
+    }
+    
+    @Override
+    @Transactional
+    public void incrementDemandVelocity(Long id) {
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + id));
+        
+        product.incrementDemandVelocity();
+        productRepository.save(product);
+    }
+    
+    @Override
+    public Double getCategoryAverageDemandVelocity(Category category) {
+        return productRepository.getAverageDemandVelocityByCategory(category);
+    }
+    
+    private ProductDto convertToDto(Product product) {
+        ProductDto dto = new ProductDto();
+        dto.setId(product.getId());
+        dto.setSku(product.getSku());
+        dto.setName(product.getName());
+        dto.setCategory(product.getCategory());
+        dto.setCurrentPrice(product.getCurrentPrice());
+        dto.setStockLevel(product.getStockLevel());
+        dto.setReorderThreshold(product.getReorderThreshold());
+        dto.setDemandVelocity(product.getDemandVelocity());
+        dto.setLifecycleStatus(product.getLifecycleStatus());
+        dto.setCostPrice(product.getCostPrice());
+        return dto;
+    }
+}
