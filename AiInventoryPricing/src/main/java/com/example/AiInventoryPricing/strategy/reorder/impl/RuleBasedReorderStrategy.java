@@ -5,12 +5,14 @@ import com.example.AiInventoryPricing.entity.ReorderSuggestion;
 import com.example.AiInventoryPricing.enums.SuggestionStatus;
 import com.example.AiInventoryPricing.enums.TriggerReason;
 import com.example.AiInventoryPricing.strategy.reorder.ReorderStrategy;
+import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 
 /**
  * Rule-based reorder strategy implementation
  * Calculates reorder quantities based on demand velocity and lead time
  */
+@Component
 public class RuleBasedReorderStrategy implements ReorderStrategy {
     
     private static final String STRATEGY_NAME = "RULE_BASED";

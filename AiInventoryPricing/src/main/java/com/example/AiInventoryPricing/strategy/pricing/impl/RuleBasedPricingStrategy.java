@@ -6,6 +6,7 @@ import com.example.AiInventoryPricing.enums.ChangeDirection;
 import com.example.AiInventoryPricing.enums.SuggestionStatus;
 import com.example.AiInventoryPricing.enums.TriggerReason;
 import com.example.AiInventoryPricing.strategy.pricing.PricingStrategy;
+import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 
@@ -13,6 +14,7 @@ import java.math.RoundingMode;
  * Rule-based pricing strategy implementation
  * Adjusts prices based on inventory levels and demand velocity
  */
+@Component
 public class RuleBasedPricingStrategy implements PricingStrategy {
     
     private static final String STRATEGY_NAME = "RULE_BASED";

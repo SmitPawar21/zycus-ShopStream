@@ -8,6 +8,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -85,5 +86,47 @@ class StrategyRegistryTest {
     void testGetActiveStrategy_NoneRegistered() {
         Optional<PricingStrategy> active = registry.getActivePricingStrategy();
         assertFalse(active.isPresent());
+    }
+
+    @Test
+    void testGetPricingStrategyByName() {
+        registry.registerPricingStrategy("test_pricing", pricingStrategy);
+        
+        PricingStrategy retrieved = registry.getPricingStrategy("test_pricing");
+        assertNotNull(retrieved);
+        assertEquals(pricingStrategy, retrieved);
+        
+        PricingStrategy notFound = registry.getPricingStrategy("nonexistent");
+        assertNull(notFound);
+    }
+
+    @Test
+    void testGetReorderStrategyByName() {
+        registry.registerReorderStrategy("test_reorder", reorderStrategy);
+        
+        ReorderStrategy retrieved = registry.getReorderStrategy("test_reorder");
+        assertNotNull(retrieved);
+        assertEquals(reorderStrategy, retrieved);
+        
+        ReorderStrategy notFound = registry.getReorderStrategy("nonexistent");
+        assertNull(notFound);
+    }
+
+    @Test
+    void testGetAvailableStrategies() {
+        registry.registerPricingStrategy("strategy1", pricingStrategy);
+        registry.registerPricingStrategy("strategy2", new RuleBasedPricingStrategy());
+        registry.registerReorderStrategy("strategy1", reorderStrategy);
+        registry.registerReorderStrategy("strategy2", new RuleBasedReorderStrategy());
+        
+        Set<String> pricingStrategies = registry.getAvailablePricingStrategies();
+        assertEquals(2, pricingStrategies.size());
+        assertTrue(pricingStrategies.contains("strategy1"));
+        assertTrue(pricingStrategies.contains("strategy2"));
+        
+        Set<String> reorderStrategies = registry.getAvailableReorderStrategies();
+        assertEquals(2, reorderStrategies.size());
+        assertTrue(reorderStrategies.contains("strategy1"));
+        assertTrue(reorderStrategies.contains("strategy2"));
     }
 }

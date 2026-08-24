@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Registry for managing available strategies
@@ -41,6 +42,24 @@ public class StrategyRegistry {
         if (activeReorderStrategyName == null) {
             activeReorderStrategyName = name;
         }
+    }
+    
+    /**
+     * Get a pricing strategy by name
+     * @param name Strategy name
+     * @return Pricing strategy
+     */
+    public PricingStrategy getPricingStrategy(String name) {
+        return pricingStrategies.get(name);
+    }
+    
+    /**
+     * Get a reorder strategy by name
+     * @param name Strategy name
+     * @return Reorder strategy
+     */
+    public ReorderStrategy getReorderStrategy(String name) {
+        return reorderStrategies.get(name);
     }
     
     /**
@@ -105,5 +124,21 @@ public class StrategyRegistry {
      */
     public String[] getReorderStrategyNames() {
         return reorderStrategies.keySet().toArray(new String[0]);
+    }
+    
+    /**
+     * Get all available pricing strategies
+     * @return Set of pricing strategy names
+     */
+    public Set<String> getAvailablePricingStrategies() {
+        return pricingStrategies.keySet();
+    }
+    
+    /**
+     * Get all available reorder strategies
+     * @return Set of reorder strategy names
+     */
+    public Set<String> getAvailableReorderStrategies() {
+        return reorderStrategies.keySet();
     }
 }
