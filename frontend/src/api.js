@@ -2,8 +2,25 @@ const BASE_URL = 'http://localhost:8080/api';
 
 const handleResponse = async (response) => {
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || response.statusText || 'API Error');
+    let errorMessage = response.statusText || 'API Error';
+    
+    // Check if response is JSON or plain text
+    const contentType = response.headers.get("content-type");
+    if (contentType && contentType.includes("application/json")) {
+      const errorData = await response.json().catch(() => ({}));
+      if (errorData.error) {
+        errorMessage = errorData.error;
+      } else if (Object.keys(errorData).length > 0) {
+        // Handle Spring Validation Object
+        errorMessage = Object.entries(errorData).map(([k, v]) => `${k}: ${v}`).join(', ');
+      }
+    } else {
+      // Handle plain text errors (like GlobalExceptionHandler generic exceptions)
+      const textError = await response.text().catch(() => "");
+      if (textError) errorMessage = textError;
+    }
+    
+    throw new Error(errorMessage);
   }
   return response.json();
 };

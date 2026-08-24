@@ -13,27 +13,133 @@ import {
   generatePricingSuggestion,
   generateReorderSuggestion,
   updateStock,
-  createProduct
+  createProduct,
+  fetchAllPricingSuggestions
 } from '../api';
 import { ProductRow } from '../components/ProductRow';
+
+// --- Notification Component ---
+const Notification = ({ message, type, onClose }) => {
+  if (!message) return null;
+  const isError = type === 'error';
+  return (
+    <div className={`fixed bottom-4 right-4 z-50 px-4 py-3 rounded-sm shadow-lg flex items-center justify-between min-w-[300px] border ${isError ? 'bg-red-50 border-red-200 text-red-700' : 'bg-green-50 border-green-200 text-green-700'}`}>
+      <span className="text-sm font-medium">{message}</span>
+      <button onClick={onClose} className="ml-4 text-gray-500 hover:text-gray-700 font-bold">&times;</button>
+    </div>
+  );
+};
+
+// --- Modals ---
+const AddProductModal = ({ isOpen, onClose, onSubmit }) => {
+  const [formData, setFormData] = useState({ sku: '', name: '', category: 'ELECTRONICS', currentPrice: '', reorderThreshold: '' });
+
+  if (!isOpen) return null;
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSubmit(formData);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-40">
+      <div className="bg-white rounded-sm shadow-xl p-6 w-full max-w-md">
+        <h2 className="text-lg font-bold mb-4">Add New Product</h2>
+        <form onSubmit={handleSubmit} className="space-y-4 text-sm">
+          <div>
+            <label className="block text-gray-700 font-medium mb-1">SKU</label>
+            <input required type="text" value={formData.sku} onChange={e => setFormData({...formData, sku: e.target.value})} className="w-full border border-gray-300 rounded-sm px-3 py-2" placeholder="e.g., ELEC-005" />
+          </div>
+          <div>
+            <label className="block text-gray-700 font-medium mb-1">Name</label>
+            <input required type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full border border-gray-300 rounded-sm px-3 py-2" />
+          </div>
+          <div>
+            <label className="block text-gray-700 font-medium mb-1">Category</label>
+            <select value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} className="w-full border border-gray-300 rounded-sm px-3 py-2 bg-white">
+              <option value="ELECTRONICS">ELECTRONICS</option>
+              <option value="APPAREL">APPAREL</option>
+              <option value="HOME">HOME</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-gray-700 font-medium mb-1">Current Price</label>
+            <input required type="number" step="0.01" min="0" value={formData.currentPrice} onChange={e => setFormData({...formData, currentPrice: e.target.value})} className="w-full border border-gray-300 rounded-sm px-3 py-2" />
+          </div>
+          <div>
+            <label className="block text-gray-700 font-medium mb-1">Reorder Threshold</label>
+            <input required type="number" min="0" value={formData.reorderThreshold} onChange={e => setFormData({...formData, reorderThreshold: e.target.value})} className="w-full border border-gray-300 rounded-sm px-3 py-2" />
+          </div>
+          <div className="flex justify-end space-x-3 mt-6">
+            <button type="button" onClick={onClose} className="px-4 py-2 border border-gray-300 text-gray-700 rounded-sm hover:bg-gray-50">Cancel</button>
+            <button type="submit" className="px-4 py-2 bg-indigo-600 text-white rounded-sm hover:bg-indigo-700">Save Product</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+const UpdateStockModal = ({ isOpen, onClose, onSubmit, productId }) => {
+  const [stockLevel, setStockLevel] = useState('');
+
+  if (!isOpen) return null;
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSubmit(productId, stockLevel);
+    setStockLevel('');
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-40">
+      <div className="bg-white rounded-sm shadow-xl p-6 w-full max-w-sm">
+        <h2 className="text-lg font-bold mb-4">Update Stock Level</h2>
+        <form onSubmit={handleSubmit} className="space-y-4 text-sm">
+          <div>
+            <label className="block text-gray-700 font-medium mb-1">New Stock Level</label>
+            <input required type="number" min="0" value={stockLevel} onChange={e => setStockLevel(e.target.value)} className="w-full border border-gray-300 rounded-sm px-3 py-2" autoFocus />
+          </div>
+          <div className="flex justify-end space-x-3 mt-6">
+            <button type="button" onClick={onClose} className="px-4 py-2 border border-gray-300 text-gray-700 rounded-sm hover:bg-gray-50">Cancel</button>
+            <button type="submit" className="px-4 py-2 bg-indigo-600 text-white rounded-sm hover:bg-indigo-700">Update Stock</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
 
 export const HomePage = () => {
   const [products, setProducts] = useState([]);
   const [pricingSuggestions, setPricingSuggestions] = useState({});
   const [reorderSuggestions, setReorderSuggestions] = useState({});
+  const [allPricingHistory, setAllPricingHistory] = useState({});
   const [availableStrategies, setAvailableStrategies] = useState({ pricingStrategies: [], reorderStrategies: [] });
   const [activeStrategies, setActiveStrategies] = useState({ pricingStrategy: '', reorderStrategy: '' });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
+  // UI States
+  const [categoryFilter, setCategoryFilter] = useState('ALL');
+  const [notification, setNotification] = useState(null);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [stockModalData, setStockModalData] = useState({ isOpen: false, productId: null });
+
+  const showNotification = (message, type = 'success') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 3000);
+  };
+
   const loadData = useCallback(async () => {
     try {
-      const [productsData, pricingData, reorderData, availableData, activeData] = await Promise.all([
+      const [productsData, pricingData, reorderData, availableData, activeData, allPricingData] = await Promise.all([
         fetchProducts(),
         fetchPendingPricingSuggestions(),
         fetchPendingReorderSuggestions(),
         fetchAvailableStrategies(),
-        fetchActiveStrategies()
+        fetchActiveStrategies(),
+        fetchAllPricingSuggestions()
       ]);
       
       setProducts(productsData);
@@ -47,6 +153,18 @@ export const HomePage = () => {
       const reorderMap = {};
       reorderData.forEach(s => reorderMap[s.productId] = s);
       setReorderSuggestions(reorderMap);
+
+      // Group pricing history by product ID
+      const historyMap = {};
+      allPricingData.forEach(s => {
+        if (!historyMap[s.productId]) historyMap[s.productId] = [];
+        historyMap[s.productId].push(s);
+      });
+      // Sort history descending by ID (assuming higher ID = newer)
+      Object.keys(historyMap).forEach(key => {
+        historyMap[key].sort((a, b) => b.id - a.id);
+      });
+      setAllPricingHistory(historyMap);
       
       setError(null);
     } catch (err) {
@@ -66,8 +184,9 @@ export const HomePage = () => {
     try {
       await simulateSale(productId);
       loadData(); 
+      showNotification('Sale simulated successfully');
     } catch (err) {
-      alert('Simulation failed: ' + err.message);
+      showNotification('Simulation failed: ' + err.message, 'error');
     }
   };
   
@@ -75,8 +194,9 @@ export const HomePage = () => {
     try {
       await updatePricingSuggestion(id, action);
       loadData();
+      showNotification(`Pricing suggestion ${action.toLowerCase()}`);
     } catch (err) {
-      alert(`Pricing ${action} failed: ` + err.message);
+      showNotification(`Pricing action failed: ` + err.message, 'error');
     }
   };
   
@@ -84,19 +204,21 @@ export const HomePage = () => {
     try {
       await updateReorderSuggestion(id, action);
       loadData();
+      showNotification(`Reorder suggestion ${action.toLowerCase()}`);
     } catch (err) {
-      alert(`Reorder ${action} failed: ` + err.message);
+      showNotification(`Reorder action failed: ` + err.message, 'error');
     }
   };
 
-  const handleUpdateStock = async (productId) => {
-    const newStock = window.prompt('Enter new stock level:');
-    if (newStock !== null && !isNaN(newStock) && newStock.trim() !== '') {
+  const handleUpdateStock = async (productId, newStock) => {
+    if (newStock !== null && !isNaN(newStock) && newStock.toString().trim() !== '') {
       try {
         await updateStock(productId, newStock);
+        setStockModalData({ isOpen: false, productId: null });
         loadData();
+        showNotification('Stock updated successfully');
       } catch (err) {
-        alert('Stock update failed: ' + err.message);
+        showNotification('Stock update failed: ' + err.message, 'error');
       }
     }
   };
@@ -105,8 +227,9 @@ export const HomePage = () => {
     try {
       await generatePricingSuggestion(productId);
       loadData();
+      showNotification('Pricing suggestion generated');
     } catch (err) {
-      alert('Failed to generate pricing suggestion: ' + err.message);
+      showNotification('Failed to generate pricing suggestion: ' + err.message, 'error');
     }
   };
 
@@ -114,36 +237,26 @@ export const HomePage = () => {
     try {
       await generateReorderSuggestion(productId);
       loadData();
+      showNotification('Reorder suggestion generated');
     } catch (err) {
-      alert('Failed to generate reorder suggestion: ' + err.message);
+      showNotification('Failed to generate reorder suggestion: ' + err.message, 'error');
     }
   };
 
-  const handleAddProduct = async () => {
-    const sku = window.prompt('SKU (e.g., ELEC-005):');
-    if (!sku) return;
-    const name = window.prompt('Name:');
-    if (!name) return;
-    const category = window.prompt('Category (ELECTRONICS, APPAREL, HOME):');
-    if (!category) return;
-    const currentPrice = window.prompt('Current Price:');
-    if (!currentPrice) return;
-    const reorderThreshold = window.prompt('Reorder Threshold:');
-    if (!reorderThreshold) return;
-
+  const handleAddProduct = async (formData) => {
     try {
       await createProduct({
-        sku,
-        name,
-        category,
-        currentPrice: parseFloat(currentPrice),
+        ...formData,
+        currentPrice: parseFloat(formData.currentPrice),
         stockLevel: 0,
-        reorderThreshold: parseInt(reorderThreshold, 10),
-        costPrice: parseFloat(currentPrice) * 0.5 // Default cost
+        reorderThreshold: parseInt(formData.reorderThreshold, 10),
+        costPrice: parseFloat(formData.currentPrice) * 0.5 // Default cost
       });
+      setIsAddModalOpen(false);
       loadData();
+      showNotification('Product created successfully');
     } catch (err) {
-      alert('Failed to create product: ' + err.message);
+      showNotification('Failed to create product: ' + err.message, 'error');
     }
   };
 
@@ -152,8 +265,9 @@ export const HomePage = () => {
     try {
       await activatePricingStrategy(newStrategy);
       loadData();
+      showNotification('Pricing strategy updated');
     } catch (err) {
-      alert('Failed to activate strategy: ' + err.message);
+      showNotification('Failed to activate strategy: ' + err.message, 'error');
     }
   };
 
@@ -162,10 +276,15 @@ export const HomePage = () => {
     try {
       await activateReorderStrategy(newStrategy);
       loadData();
+      showNotification('Reorder strategy updated');
     } catch (err) {
-      alert('Failed to activate strategy: ' + err.message);
+      showNotification('Failed to activate strategy: ' + err.message, 'error');
     }
   };
+
+  const filteredProducts = categoryFilter === 'ALL' 
+    ? products 
+    : products.filter(p => p.category === categoryFilter);
 
   if (loading && products.length === 0) {
     return <div className="p-8 text-sm text-gray-500 font-mono">Loading data...</div>;
@@ -186,7 +305,7 @@ export const HomePage = () => {
               {products.length} Products
             </div>
             <button 
-              onClick={handleAddProduct}
+              onClick={() => setIsAddModalOpen(true)}
               className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-1.5 px-4 rounded-sm text-sm"
             >
               + Add Product
@@ -194,34 +313,50 @@ export const HomePage = () => {
           </div>
         </header>
 
-        {/* Strategy Management Section */}
-        <div className="bg-white border border-gray-300 shadow-sm rounded-sm p-4 mb-6 flex flex-wrap gap-6 items-center">
-          <div className="text-sm font-semibold text-gray-800 mr-2">System AI Configuration:</div>
+        {/* Filters and Config Section */}
+        <div className="bg-white border border-gray-300 shadow-sm rounded-sm p-4 mb-6 flex flex-wrap gap-x-8 gap-y-4 items-center justify-between">
           
           <div className="flex items-center space-x-2">
-            <label className="text-xs font-medium text-gray-600">Pricing Strategy:</label>
+            <span className="text-sm font-semibold text-gray-800">Category:</span>
             <select 
-              value={activeStrategies.pricingStrategy} 
-              onChange={handleChangePricingStrategy}
-              className="text-sm border border-gray-300 rounded-sm px-2 py-1 bg-gray-50 text-gray-800"
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="text-sm border border-gray-300 rounded-sm px-2 py-1 bg-gray-50 text-gray-800 focus:outline-none focus:border-indigo-500"
             >
-              {availableStrategies.pricingStrategies?.map(s => (
-                <option key={s} value={s}>{s}</option>
-              ))}
+              <option value="ALL">All Categories</option>
+              <option value="ELECTRONICS">Electronics</option>
+              <option value="APPAREL">Apparel</option>
+              <option value="HOME">Home</option>
             </select>
           </div>
 
-          <div className="flex items-center space-x-2">
-            <label className="text-xs font-medium text-gray-600">Reorder Strategy:</label>
-            <select 
-              value={activeStrategies.reorderStrategy} 
-              onChange={handleChangeReorderStrategy}
-              className="text-sm border border-gray-300 rounded-sm px-2 py-1 bg-gray-50 text-gray-800"
-            >
-              {availableStrategies.reorderStrategies?.map(s => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
+          <div className="flex flex-wrap gap-4 items-center">
+            <div className="text-sm font-semibold text-gray-800 mr-2">System AI Configuration:</div>
+            <div className="flex items-center space-x-2">
+              <label className="text-xs font-medium text-gray-600">Pricing Strategy:</label>
+              <select 
+                value={activeStrategies.pricingStrategy} 
+                onChange={handleChangePricingStrategy}
+                className="text-sm border border-gray-300 rounded-sm px-2 py-1 bg-gray-50 text-gray-800"
+              >
+                {availableStrategies.pricingStrategies?.map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <label className="text-xs font-medium text-gray-600">Reorder Strategy:</label>
+              <select 
+                value={activeStrategies.reorderStrategy} 
+                onChange={handleChangeReorderStrategy}
+                className="text-sm border border-gray-300 rounded-sm px-2 py-1 bg-gray-50 text-gray-800"
+              >
+                {availableStrategies.reorderStrategies?.map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 
@@ -238,25 +373,26 @@ export const HomePage = () => {
               <thead>
                 <tr className="bg-gray-100 border-b border-gray-300 text-xs uppercase text-gray-700 tracking-wider">
                   <th className="px-4 py-3 font-semibold">Product Details</th>
-                  <th className="px-4 py-3 font-semibold">Current Metrics</th>
+                  <th className="px-4 py-3 font-semibold w-1/3">Current Metrics</th>
                   <th className="px-4 py-3 font-semibold w-1/3">Pending Suggestions</th>
                   <th className="px-4 py-3 font-semibold text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {products.length > 0 ? (
-                  products.map(product => (
+                {filteredProducts.length > 0 ? (
+                  filteredProducts.map(product => (
                     <ProductRow 
                       key={product.id} 
                       product={product} 
                       pricingSuggestion={pricingSuggestions[product.id]}
                       reorderSuggestion={reorderSuggestions[product.id]}
+                      priceHistory={allPricingHistory[product.id]}
                       onSimulateSale={handleSimulateSale}
                       onAcceptPricing={(id) => handlePricingAction(id, 'ACCEPTED')}
                       onRejectPricing={(id) => handlePricingAction(id, 'REJECTED')}
                       onAcceptReorder={(id) => handleReorderAction(id, 'ACCEPTED')}
                       onRejectReorder={(id) => handleReorderAction(id, 'REJECTED')}
-                      onUpdateStock={() => handleUpdateStock(product.id)}
+                      onUpdateStock={() => setStockModalData({ isOpen: true, productId: product.id })}
                       onGeneratePricing={() => handleGeneratePricing(product.id)}
                       onGenerateReorder={() => handleGenerateReorder(product.id)}
                     />
@@ -264,7 +400,7 @@ export const HomePage = () => {
                 ) : (
                   <tr>
                     <td colSpan="4" className="px-4 py-8 text-center text-sm text-gray-500 font-mono">
-                      No products available.
+                      No products match your filters.
                     </td>
                   </tr>
                 )}
@@ -273,6 +409,26 @@ export const HomePage = () => {
           </div>
         </div>
       </div>
+
+      {/* Global Modals and Notifications */}
+      <AddProductModal 
+        isOpen={isAddModalOpen} 
+        onClose={() => setIsAddModalOpen(false)} 
+        onSubmit={handleAddProduct} 
+      />
+      
+      <UpdateStockModal 
+        isOpen={stockModalData.isOpen} 
+        productId={stockModalData.productId}
+        onClose={() => setStockModalData({ isOpen: false, productId: null })} 
+        onSubmit={handleUpdateStock} 
+      />
+      
+      <Notification 
+        message={notification?.message} 
+        type={notification?.type} 
+        onClose={() => setNotification(null)} 
+      />
     </div>
   );
 };
